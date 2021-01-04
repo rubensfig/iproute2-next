@@ -8,6 +8,7 @@
 #include <netinet/in.h>
 #include <linux/if_bridge.h>
 #include <linux/if_ether.h>
+#include <linux/netlink.h>
 #include <string.h>
 
 #include "json_print.h"
@@ -521,6 +522,69 @@ static int print_vlan_stats(struct nlmsghdr *n, void *arg)
 	return 0;
 }
 
+static int print_vlan_options(struct nlmsghdr *n, void *arg)
+{
+	struct br_vlan_msg *br_msg = NLMSG_DATA(n);
+	struct rtattr *tb[BRIDGE_VLANDB_ENTRY_MAX + 1], *pos;
+	struct bridge_vlan_info *vinfo = NULL;
+	int rem = n->nlmsg_len;
+
+	for (pos = (void*)(NLMSG_DATA(n) + NLMSG_ALIGN(sizeof(*br_msg)));
+       RTA_OK(pos, rem);
+       pos =  RTA_NEXT(pos, rem))
+	{
+		if ((pos->rta_type & NLA_TYPE_MASK) != BRIDGE_VLANDB_ENTRY)
+			continue;
+
+		print_string(PRINT_ANY, 
+				"Interface:",
+				"Interface: %s\n",
+				ll_index_to_name(br_msg->ifindex));
+
+		parse_rtattr_nested(tb, BRIDGE_VLANDB_ENTRY_MAX, pos);
+
+		if (tb[BRIDGE_VLANDB_ENTRY_INFO]) {
+			vinfo = RTA_DATA(tb[BRIDGE_VLANDB_ENTRY_INFO]);
+			printf("vlan_id = %d ", vinfo->vid);
+		}
+
+		if (tb[BRIDGE_VLANDB_ENTRY_STATE]) {
+			print_uint(PRINT_ANY,
+				   "stp_state",
+				   "stp_state %u ",
+				   rta_getattr_u8(tb[BRIDGE_VLANDB_ENTRY_STATE]));
+		}
+
+		if (tb[BRIDGE_VLANDB_ENTRY_RANGE]) {
+			print_uint(PRINT_ANY,
+				   "range",
+				   "range %u ",
+				   rta_getattr_u16(tb[BRIDGE_VLANDB_ENTRY_RANGE]));
+		}
+
+		printf("\n");
+	}
+
+	return 0;
+}
+
+static int vlan_show_options(int argc, char **argv)
+{
+	new_json_obj(json);
+
+	if (rtnl_vlandump_req(&rth, PF_BRIDGE) < 0) {
+		perror("Cannot send dump request");
+		exit(1);
+	}
+
+	rtnl_dump_filter(&rth, print_vlan_options, NULL);
+
+	delete_json_obj();
+	fflush(stdout);
+	return 0;
+
+}
+
 static int vlan_show(int argc, char **argv, int subject)
 {
 	char *filter_dev = NULL;
@@ -666,6 +730,9 @@ int do_vlan(int argc, char **argv)
 			return vlan_show(argc-1, argv+1, VLAN_SHOW_VLAN);
 		if (matches(*argv, "tunnelshow") == 0) {
 			return vlan_show(argc-1, argv+1, VLAN_SHOW_TUNNELINFO);
+		}
+		if (matches(*argv, "database") == 0) {
+			return vlan_show_options(argc-1, argv+1);
 		}
 		if (matches(*argv, "help") == 0)
 			usage();

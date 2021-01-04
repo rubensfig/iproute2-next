@@ -88,6 +88,8 @@ int rtnl_nsiddump_req_filter_fn(struct rtnl_handle *rth, int family,
 	__attribute__((warn_unused_result));
 int rtnl_statsdump_req_filter(struct rtnl_handle *rth, int fam, __u32 filt_mask)
 	__attribute__((warn_unused_result));
+int rtnl_vlandump_req(struct rtnl_handle *rth, int fam)
+	__attribute__((warn_unused_result));
 int rtnl_dump_request(struct rtnl_handle *rth, int type, void *req,
 			     int len)
 	__attribute__((warn_unused_result));
@@ -278,6 +280,11 @@ int rtnl_from_file(FILE *, rtnl_listen_filter_t handler,
 #ifndef IFLA_STATS_RTA
 #define IFLA_STATS_RTA(r) \
 	((struct rtattr *)(((char *)(r)) + NLMSG_ALIGN(sizeof(struct if_stats_msg))))
+#endif
+
+#ifndef BRIDGE_VLANDB_RTA
+#define BRIDGE_VLANDB_RTA(r) \
+	((struct rtattr *)(((char *)(r)) + NLMSG_ALIGN(sizeof(struct br_vlan_msg))))
 #endif
 
 /* User defined nlmsg_type which is used mostly for logging netlink

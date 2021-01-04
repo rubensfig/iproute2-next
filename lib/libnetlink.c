@@ -590,6 +590,22 @@ int rtnl_statsdump_req_filter(struct rtnl_handle *rth, int fam, __u32 filt_mask)
 	return send(rth->fd, &req, sizeof(req), 0);
 }
 
+int rtnl_vlandump_req(struct rtnl_handle *rth, int family)
+{
+	struct {
+		struct nlmsghdr nlh;
+		struct br_vlan_msg ifm;
+	} req = {
+		.nlh.nlmsg_len = NLMSG_LENGTH(sizeof(struct br_vlan_msg)),
+		.nlh.nlmsg_type = RTM_GETVLAN,
+		.nlh.nlmsg_flags = NLM_F_DUMP | NLM_F_REQUEST,
+		.nlh.nlmsg_seq = rth->dump = ++rth->seq,
+		.ifm.family = family,
+	};
+
+	return send(rth->fd, &req, sizeof(req), 0);
+}
+
 int rtnl_send(struct rtnl_handle *rth, const void *buf, int len)
 {
 	return send(rth->fd, buf, len, 0);
